@@ -1,0 +1,13 @@
+{
+  "name": "APP",
+  "version": "0.0.1",
+  "main": "APP.js",
+  "private": true,
+
+  "plugin": {
+    "consumes": ["Command"],
+    "provides": ["APP"]
+
+
+  }
+}

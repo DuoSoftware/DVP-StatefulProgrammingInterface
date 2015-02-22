@@ -1,0 +1,11 @@
+{
+  "name": "Command",
+  "version": "0.0.1",
+  "main": "Command.js",
+  "private": true,
+
+  "plugin": {
+    "provides": ["Command"]
+
+  }
+}
