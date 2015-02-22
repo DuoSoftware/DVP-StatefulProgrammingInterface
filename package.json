@@ -1,0 +1,29 @@
+{
+  "name": "DVP-StatefulProgrammingInterface",
+  "version": "0.0.0",
+  "description": "DVP-StatefulProgrammingInterface\r ================================",
+  "main": "app.js",
+  "dependencies": {
+    "architect": "^0.1.11",
+    "architect-restify": "^0.3.1",
+    "hashmap": "^2.0.1",
+    "modesl": "^1.1.2",
+    "redis": "^0.12.1",
+    "stringformat": "^0.0.5",
+    "seaport": "^2.0.9"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DuoSoftware/DVP-StatefulProgrammingInterface.git"
+  },
+  "author": "sukitha",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/DuoSoftware/DVP-StatefulProgrammingInterface/issues"
+  },
+  "homepage": "https://github.com/DuoSoftware/DVP-StatefulProgrammingInterface"
+}
