@@ -1,13 +1,11 @@
-/**
- * Created by a on 2/21/2015.
- */
+var format = require('stringformat');
 
 
 
 
 module.exports = function setup(options, imports, register) {
 
-    var $ = require('stringformat');
+
     register(null, {
         Command:{
 
@@ -28,7 +26,7 @@ module.exports = function setup(options, imports, register) {
                 //string playCollectCommand = string.Format("sendmsg\ncall-command: execute\nexecute-app-name: play_and_get_digits\nexecute-app-arg: {0} {1} {2} {3} {4} {5} {6} {7} {8}\n\n", 0, a_numOfDig, 1, a_maxTime, tone, fileName, "/invalid.wav", "mydigit", "\\S+");
 
 
-                var args = $("{0} {1} {2} {3} {4} {5} {6} {7} {8}",noofmindigits,noofmaxdigits, tries ,maxtime, tone, file, invalidfile, "mydigit", "\\S+");
+                var args = format("{0} {1} {2} {3} {4} {5} {6} {7} {8}",noofmindigits,noofmaxdigits, tries ,maxtime, tone, file, invalidfile, "mydigit", "\\S+");
 
                 return event = {command: 'play_and_get_digits', arg: args};
 

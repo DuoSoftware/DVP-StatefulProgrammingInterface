@@ -1,8 +1,7 @@
 var esl = require('modesl');
 var redis = require('redis');
 var hashmap = require('hashmap');
-
-
+var format = require('stringformat');
 module.exports = function setup(options, imports, register) {
 
    // var rest = imports.rest;
@@ -11,6 +10,41 @@ module.exports = function setup(options, imports, register) {
 
     var connx;
     var app = imports.APP;
+
+
+
+    app.Emitter.on('route',function(id, destination){
+
+        console.log(id , destination);
+        var connection;
+
+
+        var cmd;
+
+        function GetElement(element) {
+            if (element.id == id) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        var arrByID = map.filter(GetElement);
+
+
+        if (arrByID.length > 0) {
+
+            connection = arrByID[0].connection;
+        }
+
+        if(connection){
+
+            connection.execute('bridge', format('user/{0}',destination) );
+        }
+
+
+    });
+
 
     var esl_server = new esl.Server({port: 2233, myevents:true}, function(){
         console.log("esl server is up");
@@ -25,6 +59,8 @@ module.exports = function setup(options, imports, register) {
 
         var connection;
 
+
+        var cmd;
 
         function GetElement(element) {
             if (element.id == uniqueid) {
@@ -48,6 +84,8 @@ module.exports = function setup(options, imports, register) {
 
             var session = { id : uniqueid};
 
+            console.log(evt.type);
+
             switch (evt.type) {
 
                 case 'CHANNEL_BRIDGE':
@@ -59,19 +97,7 @@ module.exports = function setup(options, imports, register) {
                     break;
 
                 case 'CHANNEL_ANSWER':
-                    var cmd = app.OnCallAnswered(session);
-                    if(cmd){
-
-                        try {
-                            connection.execute(cmd.command, cmd.arg)
-                        }
-                        catch(exp) {
-
-                            console.log(exp);
-
-                        }
-                    }
-
+                     cmd = app.OnCallAnswered(session);
                     break;
 
                 case 'CHANNEL_UNBRIDGE':
@@ -87,28 +113,38 @@ module.exports = function setup(options, imports, register) {
                     break;
 
                 case 'DTMF':
-
-                    app.OnDTMFRecived(session);
+                   //cmd = app.OnDTMFRecived(session);
                     break;
 
                 case 'CHANNEL_EXECUTE_COMPLETE':
+                    var application = evt.getHeader('Application');
+                    var result = evt.getHeader('variable_read_result');
+                    var digit =  evt.getHeader('variable_mydigit');
+
+
+                    if(application && application == 'play_and_get_digits') {
+
+                        if(result && result == 'success' ) {
+
+                            app.OnPlayCollectDone(session,result, digit);
+                        }
+                        else{
+
+                            app.OnPlayCollectDone(session,'fail', digit);
+                        }
+                    }
+
+
+
+
+                    //console.log(evt);
 
                     break;
 
                 case 'PLAYBACK_STOP':
 
-                    var cmd  = app.OnPlayDone(session);
-                    if(cmd){
+                     //cmd  = app.OnPlayDone(session);
 
-                        try {
-                            connection.execute(cmd.command, cmd.arg)
-                        }
-                        catch(exp) {
-
-                            console.log(exp);
-
-                        }
-                    }
                     break;
 
                 case 'CHANNEL_HANGUP_COMPLETE':
@@ -120,6 +156,16 @@ module.exports = function setup(options, imports, register) {
                     if(connection && connection.connected())
                         connection.disconnect();
 
+
+                    for(var i = map.length; i--;){
+                        if (map[i].id == uniqueid){
+                            map.splice(i, 1)
+
+                            break;
+                        };
+                    }
+
+
                     break;
 
                 case 'CHANNEL_HANGUP':
@@ -129,15 +175,29 @@ module.exports = function setup(options, imports, register) {
 
                 case 'RECORD_STOP':
 
-                    APP.OnRecordDone(session);
+                    //APP.OnRecordDone(session);
                     break;
 
                 default :
 
-                    console.log(evt.type);
+
 
                     break;
 
+            }
+
+
+            if(cmd){
+
+                try {
+                   var workingID = connection.execute(cmd.command, cmd.arg)
+                    console.log(workingID)
+                }
+                catch(exp) {
+
+                    console.log(exp);
+
+                }
             }
         }
     }
@@ -159,7 +219,6 @@ module.exports = function setup(options, imports, register) {
 
         //var conn = map[evt.getHeader('Unique-ID')];
 
-
     }
 
 
@@ -177,6 +236,8 @@ module.exports = function setup(options, imports, register) {
             //conn.getInfo()['Unique-ID'];
 
         map.push({id:idx, connection:conn});
+
+
 
         console.log('new call ' + id);
         conn.call_start = new Date().getTime();
