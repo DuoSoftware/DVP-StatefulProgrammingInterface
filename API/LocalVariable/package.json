@@ -1,0 +1,11 @@
+{
+  "name": "LocalVariable",
+  "version": "0.0.1",
+  "main": "LocalVariable.js",
+  "private": true,
+
+  "plugin": {
+    "provides": ["LocalVariable"]
+
+  }
+}

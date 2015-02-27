@@ -5,4 +5,5 @@ module.exports = [{
 },
     './API/Session',
     './API/Command',
-    './API/APP'];
+    './API/APP',
+    './API/LocalVariable'];

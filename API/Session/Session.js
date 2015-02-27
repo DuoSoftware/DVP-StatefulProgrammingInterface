@@ -2,9 +2,25 @@ var esl = require('modesl');
 var redis = require('redis');
 var hashmap = require('hashmap');
 var format = require('stringformat');
+var sqlite3 = require('sqlite3').verbose();
+
+
+
 module.exports = function setup(options, imports, register) {
 
    // var rest = imports.rest;
+
+
+
+
+    var db = new sqlite3.Database(':memory:');
+
+    db.serialize(function(){
+        db.run("CREATE TABLE Session (CallID TEXT PRIMARY KEY, SessionID, From, To, Direction, ChannelStatus TEXT)");
+    });
+
+
+
 
     var map = [];
 
@@ -58,6 +74,7 @@ module.exports = function setup(options, imports, register) {
 
 
         var connection;
+        var session;
 
 
         var cmd;
@@ -76,13 +93,14 @@ module.exports = function setup(options, imports, register) {
         if (arrByID.length > 0) {
 
             connection = arrByID[0].connection;
+            session = arrByID[0].session;
         }
 
 
         if (evt && uniqueid && connection) {
 
 
-            var session = { id : uniqueid};
+           // var session = { id : uniqueid};
 
             console.log(evt.type);
 
@@ -97,6 +115,7 @@ module.exports = function setup(options, imports, register) {
                     break;
 
                 case 'CHANNEL_ANSWER':
+
                      cmd = app.OnCallAnswered(session);
                     break;
 
@@ -113,7 +132,7 @@ module.exports = function setup(options, imports, register) {
                     break;
 
                 case 'DTMF':
-                   //cmd = app.OnDTMFRecived(session);
+                    cmd = app.OnDTMFRecived(session);
                     break;
 
                 case 'CHANNEL_EXECUTE_COMPLETE':
@@ -126,11 +145,11 @@ module.exports = function setup(options, imports, register) {
 
                         if(result && result == 'success' ) {
 
-                            app.OnPlayCollectDone(session,result, digit);
+                            cmd = app.OnPlayCollectDone(session,result, digit);
                         }
                         else{
 
-                            app.OnPlayCollectDone(session,'fail', digit);
+                            cmd = app.OnPlayCollectDone(session,'fail', digit);
                         }
                     }
 
@@ -143,7 +162,7 @@ module.exports = function setup(options, imports, register) {
 
                 case 'PLAYBACK_STOP':
 
-                     //cmd  = app.OnPlayDone(session);
+                     cmd  = app.OnPlayDone(session);
 
                     break;
 
@@ -166,6 +185,15 @@ module.exports = function setup(options, imports, register) {
                     }
 
 
+
+                    try{
+                        db.run(format("DELETE FROM Session WHERE CallID = {0}", uniqueid));
+                    }
+                    catch(ex){
+
+                        console.log(ex);
+                    }
+
                     break;
 
                 case 'CHANNEL_HANGUP':
@@ -179,8 +207,6 @@ module.exports = function setup(options, imports, register) {
                     break;
 
                 default :
-
-
 
                     break;
 
@@ -228,44 +254,35 @@ module.exports = function setup(options, imports, register) {
 
         //connx = conn;
 
+        //CallID TEXT PRIMARY KEY, SessionID, From, To, Direction, ChannelStatus TEXT
         var idx  = conn.getInfo().getHeader('Unique-ID');
+        var from = conn.getInfo().getHeader('Caller-Caller-ID-Number');
+        var to = conn.getInfo().getHeader('Caller-Destination-Number');
+        var direction = conn.getInfo().getHeader('Call-Direction');
+        var channelstatus = conn.getInfo().getHeader('Answer-State');
+        var session = { id : idx, from : from, to : to, direction : direction, channelstatus : channelstatus};
 
-      //  var idx = id;
-        //["Unique-ID"];
-
-            //conn.getInfo()['Unique-ID'];
-
-        map.push({id:idx, connection:conn});
-
-
-
+        map.push({id:idx, connection: conn, session: session});
         console.log('new call ' + id);
         conn.call_start = new Date().getTime();
-
-
-
         conn.setAsyncExecute(true);
-
-        //conn.filter("Unique-ID "+ idx);
         conn.subscribe(['CHANNEL_PARK', 'CHANNEL_ANSWER', 'CHANNEL_UNBRIDGE', 'CHANNEL_BRIDGE', 'RECV_INFO', 'MESSAGE', 'DTMF', 'CHANNEL_EXECUTE_COMPLETE', 'PLAYBACK_STOP', 'CHANNEL_HANGUP_COMPLETE', 'RECORD_STOP']);
         conn.send('linger');
-
-
-
         conn.on('esl::end', end);
-
         conn.on('esl::event::disconnect::notice', disconnect);
-
-
         conn.on('esl::event::command::reply', reply);
         conn.on('esl::event::**', handler);
 
-        var session = { id : idx};
 
-        //map.set(conn.getInfo()['Unique-ID'], conn);
+        try{
+            db.run(format("INSERT INTO Session VALUES ({0}, {0}, {1}, {2}, {3}, {4})", id, from, to, direction, channelstatus));
+        }
+        catch(exp){
+
+            console.log(exp);
+        }
 
         var command = app.OnCallRecive(session);
-
         conn.execute(command.command);
     });
 
