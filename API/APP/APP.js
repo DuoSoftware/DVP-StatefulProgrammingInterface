@@ -9,6 +9,8 @@ var eventEmitter = new events.EventEmitter();
 module.exports = function setup(options, imports, register) {
 
     var rest = imports.rest;
+    var localVariable = imports.LocalVariable;
+
     rest.get('/route/:sessionid/:destination', function (req, res, next) {
 
         eventEmitter.emit('route', req.params.sessionid,req.params.destination);
