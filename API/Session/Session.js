@@ -3,32 +3,25 @@ var redis = require('redis');
 var hashmap = require('hashmap');
 var format = require('stringformat');
 
-
-
-
 module.exports = function setup(options, imports, register) {
 
     var sqlite3 = imports.LocalVariable.sqlite3;
-   var db = imports.LocalVariable.databse;
+    var db = imports.LocalVariable.databse;
     var localVariable = imports.LocalVariable;
 
 
     try {
         db.serialize(function () {
             db.run("CREATE TABLE if not exists Session (CallID TEXT PRIMARY KEY, SessionID, ANI, DNIS, Direction, ChannelStatus)");
+            db.run("CREATE TABLE if not exists SessionVariables (SessionID, Key, Value TEXT)");
         });
     }
     catch(ex)
-    {
-
-    }
-
+    {}
 
     var map = [];
     var connx;
     var app = imports.APP;
-
-
 
     app.Emitter.on('route',function(id, destination){
 
@@ -56,8 +49,6 @@ module.exports = function setup(options, imports, register) {
 
             connection.execute('bridge', format('user/{0}',destination) );
         }
-
-
     });
 
 
@@ -65,6 +56,7 @@ module.exports = function setup(options, imports, register) {
 
         console.log(id , destination);
         var session;
+        var connection;
 
 
 
@@ -83,17 +75,125 @@ module.exports = function setup(options, imports, register) {
         if (arrByID.length > 0) {
 
             session = arrByID[0].session;
+            connection = arrByID[0].connection;
         }
 
         if(session){
 
-            //connection.execute('bridge', format('user/{0}',destination) );
+            var params = format('{return_ring_ready=true,Originate_session_uuid={0}{1}',id,'}');
+            var socketdata = format('&socket({0}:{1} async full)', '127.0.0.1',2233);
+            var args = format('{0}user/{1} {2}',params, destination,socketdata);
+
+            console.log(args);
+
+            connection.api('originate', args, function(evt){
+
+                console.log(evt);
+            })
+        }
+    });
+
+
+    app.Emitter.on('bridge',function(uuid, otheruuid, pbxrequire){
+
+        console.log(uuid , otheruuid);
+        var session;
+        var connection;
+
+
+        var otherSession;
+        var otherConnection;
+
+        function GetElement(element) {
+            if (element.id == uuid) {
+                return true;
+            } else {
+                return false;
+            }
         }
 
 
+        function GetOtherElement(element) {
+            if (element.id == otheruuid) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        var arrByID = map.filter(GetElement);
+
+        var otherArrayById = map.filter(GetOtherElement);
+
+        if (arrByID.length > 0) {
+
+            session = arrByID[0].session;
+            connection = arrByID[0].connection;
+        }
+
+
+
+        if (otherArrayById.length > 0) {
+
+            otherSession = otherArrayById[0].session;
+            otherConnection = otherArrayById[0].connection;
+        }
+
+
+
+        if(session && connection && otherSession && otherConnection && connection.connected() && otherConnection.connected()){
+
+            try {
+
+                if (pbxrequire) {
+
+                    connection.execute('bind_meta_app', '3 ab s execute_extension::att_xfer XML PBXFeatures');
+                    connection.execute('bind_meta_app', '4 ab s execute_extension::att_xfer_group XML PBXFeatures');
+                    connection.execute('bind_meta_app', '5 ab s execute_extension::att_xfer_speed_dial XML PBXFeatures');
+                    connection.execute('bind_meta_app', '6 ab s execute_extension::att_xfer_outbound XML PBXFeatures');
+                }
+
+
+                connection.bgapi('uuid_bridge', format('{0} {1}', uuid, otheruuid), function (evt) {
+
+                    console.log(evt);
+                })
+            }
+            catch(ex){
+
+            }
+        }
     });
 
     app.Emitter.on('hangup',function(id){
+
+        console.log(id );
+        var connection;
+
+
+        function GetElement(element) {
+            if (element.id == id) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        var arrByID = map.filter(GetElement);
+        if (arrByID.length > 0) {
+
+            connection = arrByID[0].connection;
+        }
+
+        if(connection){
+
+            connection.execute('hangup');
+        }
+    });
+
+
+
+    app.Emitter.on('kill',function(id){
 
         console.log(id );
         var connection;
@@ -117,16 +217,9 @@ module.exports = function setup(options, imports, register) {
 
         if(connection){
 
-            connection.execute('hangup');
+            connection.api('uuid_kill', id);
         }
-
-
-
     });
-
-
-
-
 
     var esl_server = new esl.Server({port: 2233, myevents:true}, function(){
         console.log("esl server is up");
@@ -137,8 +230,6 @@ module.exports = function setup(options, imports, register) {
 
 
         var uniqueid = evt.getHeader('Unique-ID');
-
-
         var connection;
         var session;
 
@@ -295,36 +386,17 @@ module.exports = function setup(options, imports, register) {
 
                 case 'CHANNEL_HANGUP_COMPLETE':
 
-                    if(connection && connection.connected())
-                        connection.disconnect();
 
-
-                    for(var i = map.length; i--;){
-                        if (map[i].id == uniqueid){
-                            map.splice(i, 1)
-
-                            break;
-                        };
-                    }
-
-                    try{
-                        db.run(format("DELETE FROM Session WHERE CallID = '{0}'", uniqueid));
-                        localVariable.clear(uniqueid);
-                    }
-                    catch(ex){
-
-                        console.log(ex);
-                    }
 
                     break;
 
                 case 'CHANNEL_HANGUP':
                     try {
-                        var session = {id: uniqueid};
+
                         app.OnCallDisconnected(session);
+
                     }
                     catch(ex){
-
 
                     }
                     break;
@@ -341,6 +413,7 @@ module.exports = function setup(options, imports, register) {
                     break;
 
                 default :
+                    console.log(evt);
 
                     break;
 
@@ -370,15 +443,64 @@ module.exports = function setup(options, imports, register) {
 
     var reply =  function(evt, body) {
 
-        console.log("reply " + evt );
+        console.log( evt );
     }
 
     var disconnect =  function(evt, body) {
 
-        var uniqueid = evt.getHeader('Unique-ID');
+        var uniqueid = evt.getHeader('Controlled-Session-UUID');
 
-        //var conn = map[evt.getHeader('Unique-ID')];
 
+        var connection;
+        var session;
+
+        function GetElement(element) {
+            if (element.id == uniqueid) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        var arrByID = map.filter(GetElement);
+
+
+        if (arrByID.length > 0) {
+
+            connection = arrByID[0].connection;
+            session = arrByID[0].session;
+        }
+
+
+        try{
+
+            if(connection && connection.connected())
+                connection.disconnect();
+
+
+            for(var i = map.length; i--;){
+                if (map[i].id == uniqueid){
+                    map.splice(i, 1);
+
+                    break;
+                };
+            }
+        }catch(ex){
+
+        }
+
+        if(uniqueid){
+
+            try{
+                db.run(format("DELETE FROM Session WHERE CallID = '{0}'", uniqueid));
+                localVariable.clear(uniqueid);
+            }
+            catch(ex){
+
+                console.log(ex);
+            }
+
+        }
     }
 
 
@@ -387,44 +509,69 @@ module.exports = function setup(options, imports, register) {
 
         try {
 
-            //connx = conn;
-
-            //CallID TEXT PRIMARY KEY, SessionID, From, To, Direction, ChannelStatus TEXT
             var idx = conn.getInfo().getHeader('Unique-ID');
             var from = conn.getInfo().getHeader('Caller-Caller-ID-Number');
             var to = conn.getInfo().getHeader('Caller-Destination-Number');
             var direction = conn.getInfo().getHeader('Call-Direction');
             var channelstatus = conn.getInfo().getHeader('Answer-State');
-            var session = {id: idx, from: from, to: to, direction: direction, channelstatus: channelstatus};
+            var originateSession = conn.getInfo().getHeader('variable_Originate_session_uuid');
 
+            var sessionID = idx;
+
+            if(originateSession)
+                sessionID = originateSession;
+
+
+            var session = {id: idx, session: sessionID,  from: from, to: to, direction: direction, channelstatus: channelstatus};
             map.push({id: idx, connection: conn, session: session});
             console.log('new call ' + id);
             conn.call_start = new Date().getTime();
-            conn.setAsyncExecute(true);
-            conn.subscribe(['CHANNEL_PARK', 'CHANNEL_ANSWER', 'CHANNEL_UNBRIDGE', 'CHANNEL_BRIDGE', 'RECV_INFO', 'MESSAGE', 'DTMF', 'CHANNEL_EXECUTE_COMPLETE', 'PLAYBACK_STOP', 'CHANNEL_HANGUP_COMPLETE', 'RECORD_STOP']);
-            conn.send('linger');
+
+
             conn.on('esl::end', end);
             conn.on('esl::event::disconnect::notice', disconnect);
             conn.on('esl::event::command::reply', reply);
             conn.on('esl::event::**', handler);
+
+            if(direction == 'outbound'){
+
+                if(channelstatus != 'answered') {
+
+                    conn.execute('wait_for_answer');
+                }
+            }else{
+
+            }
+
         }
-        catch (ex){
-
-
-
-        }
+        catch (ex){}
 
 
         try{
-            db.run(format("INSERT INTO Session VALUES ('{0}', '{0}', '{1}', '{2}', '{3}', '{4}')", idx, from, to, direction, channelstatus));
+
+            if(originateSession) {
+
+                db.run(format("INSERT INTO Session VALUES ('{0}', '{1}', '{2}', '{3}', '{4}', '{5}')", idx,originateSession, from, to, direction, channelstatus));
+
+            }
+            else {
+
+                db.run(format("INSERT INTO Session VALUES ('{0}', '{0}', '{1}', '{2}', '{3}', '{4}')", idx, from, to, direction, channelstatus));
+
+            }
         }
         catch(exp){
 
             console.log(exp);
         }
 
-        var command = app.OnCallRecive(session);
-        conn.execute(command.command);
+        if(!originateSession) {
+            var command = app.OnCallRecive(session);
+            conn.execute(command.command);
+        }else {
+
+            app.OnOutgoingSession(session);
+        }
     });
 
     register();

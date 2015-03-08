@@ -1,6 +1,6 @@
 module.exports = [{
     packagePath: "architect-restify",
-    port: process.env.PORT || 8080,
+    port: process.env.PORT || 8090,
     host: process.env.IP || "0.0.0.0"
 },
     './API/Session',

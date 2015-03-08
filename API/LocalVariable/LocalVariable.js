@@ -6,15 +6,6 @@ module.exports = function setup(options, imports, register) {
 
     var db = new sqlite3.Database('config.db');//:memory:
 
-    try {
-        db.serialize(function () {
-            db.run("CREATE TABLE if not exists SessionVariables (SessionID, Key, Value TEXT)");
-        });
-    }
-    catch(ex){
-
-    }
-
 
 
     register(null, {LocalVariable:{
@@ -42,8 +33,6 @@ module.exports = function setup(options, imports, register) {
 
                 });
             }
-
-
         },
 
         set: function(sessionID, key, value){

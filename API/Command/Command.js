@@ -28,8 +28,28 @@ module.exports = function setup(options, imports, register) {
 
                 var args = format("{0} {1} {2} {3} {4} {5} {6} {7} {8}",noofmindigits,noofmaxdigits, tries ,maxtime, tone, file, invalidfile, "mydigit", "\\S+");
 
-                return event = {command: 'play_and_get_digits', arg: args};
+                return {command: 'play_and_get_digits', arg: args};
 
+            },
+
+            Stream : function(stream){
+
+                return {command: 'playback', arg: format("local_stream://{0}", stream)};
+
+
+            },
+
+
+            playback : function(file){
+
+                return {command: 'playback', arg: file};
+
+
+            },
+
+            bridge : function(uuid, otheruuid){
+
+              return {command: 'uuid_bridge', arg:format('{0} {1}', uuid, otheruuid)}  ;
             }
         }
     });
