@@ -1,0 +1,12 @@
+{
+  "name": "API",
+  "version": "0.0.1",
+  "main": "API.js",
+  "private": true,
+
+  "plugin": {
+    "provides": ["API"]
+
+
+  }
+}

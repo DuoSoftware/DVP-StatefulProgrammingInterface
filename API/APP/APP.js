@@ -104,6 +104,13 @@ module.exports = function setup(options, imports, register) {
             OnRecordDone : function(session){
 
                 console.log("OnRecordDone");
+            },
+
+
+            OnOriginateFail: function(session){
+
+                console.log("OnOriginateFail");
+
             }
         }
     });

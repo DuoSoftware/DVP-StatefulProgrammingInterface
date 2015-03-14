@@ -1,5 +1,6 @@
 var sqlite3 = require('sqlite3').verbose();
 var format = require('stringformat');
+var redis = require('redis');
 
 
 module.exports = function setup(options, imports, register) {
@@ -12,7 +13,6 @@ module.exports = function setup(options, imports, register) {
 
 
         databse : db,
-
         sqlite3 : sqlite3,
 
 

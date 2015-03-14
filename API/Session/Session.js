@@ -1,13 +1,14 @@
 var esl = require('modesl');
-var redis = require('redis');
-var hashmap = require('hashmap');
 var format = require('stringformat');
+var conf = require('../../config.js');
+var request = require('request');
 
 module.exports = function setup(options, imports, register) {
 
     var sqlite3 = imports.LocalVariable.sqlite3;
     var db = imports.LocalVariable.databse;
     var localVariable = imports.LocalVariable;
+    var api = imports.API;
 
 
     try {
@@ -58,9 +59,6 @@ module.exports = function setup(options, imports, register) {
         var session;
         var connection;
 
-
-
-
         function GetElement(element) {
             if (element.id == id) {
                 return true;
@@ -80,6 +78,7 @@ module.exports = function setup(options, imports, register) {
 
         if(session){
 
+            /*
             var params = format('{return_ring_ready=true,Originate_session_uuid={0}{1}',id,'}');
             var socketdata = format('&socket({0}:{1} async full)', '127.0.0.1',2233);
             var args = format('{0}user/{1} {2}',params, destination,socketdata);
@@ -90,6 +89,26 @@ module.exports = function setup(options, imports, register) {
 
                 console.log(evt);
             })
+
+            */
+
+            var destination = format("http://{0}:8080/api/originate?", session.fsIP);
+            var params = format('{return_ring_ready=true,Originate_session_uuid={0}{1}',id,'}');
+            var socketdata = format('&socket({0}:{1} async full)', '127.0.0.1',2233);
+            var args = format('{3} {0}user/{1} {2}',params, destination,socketdata, destination);
+
+            console.log(args);
+
+            request(args, function (error, response, body) {
+                if (!error && response.statusCode == 200) {
+                    console.log(body) // Show the HTML for the Google homepage.
+                }
+                else{
+
+                     app.OnOriginateFail(session);
+                }
+            })
+
         }
     });
 
@@ -122,7 +141,6 @@ module.exports = function setup(options, imports, register) {
         }
 
         var arrByID = map.filter(GetElement);
-
         var otherArrayById = map.filter(GetOtherElement);
 
         if (arrByID.length > 0) {
@@ -221,7 +239,7 @@ module.exports = function setup(options, imports, register) {
         }
     });
 
-    var esl_server = new esl.Server({port: 2233, myevents:true}, function(){
+    var esl_server = new esl.Server({port: conf.tcpport, myevents:true}, function(){
         console.log("esl server is up");
     });
 
@@ -416,9 +434,7 @@ module.exports = function setup(options, imports, register) {
                     console.log(evt);
 
                     break;
-
             }
-
 
             if(cmd){
 
@@ -516,13 +532,24 @@ module.exports = function setup(options, imports, register) {
             var channelstatus = conn.getInfo().getHeader('Answer-State');
             var originateSession = conn.getInfo().getHeader('variable_Originate_session_uuid');
 
+            //Core-UUID: 6d2375b0-5183-11e1-b24c-f527b57af954
+            //FreeSWITCH-Hostname: freeswitch.local
+            //FreeSWITCH-Switchname: freeswitch.local
+            //FreeSWITCH-IPv4
+
+            var fsid = conn.getInfo().getHeader('Core-UUID');
+            var fsHost = conn.getInfo().getHeader('FreeSWITCH-Hostname');
+            var fsName = conn.getInfo().getHeader('FreeSWITCH-Switchname');
+            var fsIP = conn.getInfo().getHeader('FreeSWITCH-IPv4');
+
+
             var sessionID = idx;
 
             if(originateSession)
                 sessionID = originateSession;
 
 
-            var session = {id: idx, session: sessionID,  from: from, to: to, direction: direction, channelstatus: channelstatus};
+            var session = {id: idx, session: sessionID,  from: from, to: to, direction: direction, channelstatus: channelstatus, fsID: fsid,fsHost: fsHost, fsName: fsName, fsIP: fsIP, myip: conf.externaltcpip, myport: conf.externaltcpport};
             map.push({id: idx, connection: conn, session: session});
             console.log('new call ' + id);
             conn.call_start = new Date().getTime();
