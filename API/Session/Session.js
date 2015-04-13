@@ -239,7 +239,7 @@ module.exports = function setup(options, imports, register) {
         }
     });
 
-    var esl_server = new esl.Server({port: conf.tcpport, myevents:true}, function(){
+    var esl_server = new esl.Server({port: conf[0].tcpport, myevents:true}, function(){
         console.log("esl server is up");
     });
 
@@ -549,7 +549,7 @@ module.exports = function setup(options, imports, register) {
                 sessionID = originateSession;
 
 
-            var session = {id: idx, session: sessionID,  from: from, to: to, direction: direction, channelstatus: channelstatus, fsID: fsid,fsHost: fsHost, fsName: fsName, fsIP: fsIP, myip: conf.externaltcpip, myport: conf.externaltcpport};
+            var session = {id: idx, session: sessionID,  from: from, to: to, direction: direction, channelstatus: channelstatus, fsID: fsid,fsHost: fsHost, fsName: fsName, fsIP: fsIP, myip: conf[0].externaltcpip, myport: conf[0].externaltcpport};
             map.push({id: idx, connection: conn, session: session});
             console.log('new call ' + id);
             conn.call_start = new Date().getTime();
